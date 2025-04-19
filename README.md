@@ -40,7 +40,12 @@ pip install -r requirements.txt
    # メール設定
    email:
      from: "your_email@gmail.com"
-     to: "recipient@example.com"
+     # 配列形式で複数の送信先を指定する場合
+     to:
+       - "recipient1@example.com"
+       - "recipient2@example.com"
+     # または、カンマ区切りの文字列で指定することも可能
+     # to: "recipient1@example.com, recipient2@example.com"
      smtp_server: "smtp.gmail.com"
      smtp_port: 587
      password: "your_app_password"  # Gmailの場合はアプリパスワードを使用
@@ -48,13 +53,19 @@ pip install -r requirements.txt
    # OpenAI API設定
    openai:
      api_key: "your_openai_api_key"
-     model: "gpt-4"
+     model: "gpt-4o-mini"
      max_tokens: 800  # 日本語400文字の要約に対応
      additional_prompt: |
        以下の指示に従って要約を作成してください：
        1. 各ノートの重要なポイントを3点にまとめる
        2. 技術的な用語は可能な限り平易な言葉で説明する
        3. アクションアイテムがある場合は、末尾に箇条書きでまとめる
+
+   # 検索対象期間の設定
+   search_period:
+     days: 1  # 検索対象とする日数（1なら当日のみ、2なら前日も含む）
+     start_time: "00:00"  # 検索開始時刻（オプション）
+     end_time: "23:59"   # 検索終了時刻（オプション）
 
    # ログ設定
    logging:
