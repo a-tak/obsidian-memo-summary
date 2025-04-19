@@ -86,12 +86,43 @@ class ObsidianSummary:
             self.logger.error(f"設定ファイルの読み込みに失敗: {e}")
             raise
 
+    def _get_search_period(self):
+        """検索対象期間の開始時刻と終了時刻を計算"""
+        now = datetime.now()
+        search_period = self.config.get('search_period', {})
+        
+        # 日数の取得（デフォルトは1日）
+        days = search_period.get('days', 1)
+        if not isinstance(days, int) or days < 1:
+            self.logger.warning("無効な日数指定。デフォルトの1日を使用します。")
+            days = 1
+        
+        # 開始・終了時刻の取得
+        try:
+            start_time = datetime.strptime(search_period.get('start_time', '00:00'), '%H:%M').time()
+            end_time = datetime.strptime(search_period.get('end_time', '23:59'), '%H:%M').time()
+        except ValueError as e:
+            self.logger.warning(f"時刻形式が無効です: {e}. デフォルト値を使用します。")
+            start_time = datetime.strptime('00:00', '%H:%M').time()
+            end_time = datetime.strptime('23:59', '%H:%M').time()
+        
+        # 期間の計算
+        end_datetime = datetime.combine(now.date(), end_time)
+        start_datetime = datetime.combine(now.date() - timedelta(days=days-1), start_time)
+        
+        return start_datetime, end_datetime
+
     def find_tagged_notes(self):
         """指定したタグを持つノートファイルを検索"""
         notes = []
         try:
             vault_path = self._convert_to_unc_path(self.config['vault_path'])
             pattern = os.path.join(vault_path, '**/*.md')
+            
+            # 検索対象期間の取得
+            start_datetime, end_datetime = self._get_search_period()
+            self.logger.info(f"検索対象期間: {start_datetime} から {end_datetime} まで")
+            
             for filepath in glob.glob(pattern, recursive=True):
                 # ファイルの更新日時を取得
                 try:
@@ -99,8 +130,9 @@ class ObsidianSummary:
                 except FileNotFoundError as e:
                     self.logger.error(f"ファイルが見つかりません: {filepath} - {e}")
                     continue
-                # 今日の日付と一致するか確認
-                if last_modified.date() == datetime.now().date():
+                
+                # 指定された期間内かどうか確認
+                if start_datetime <= last_modified <= end_datetime:
                     with open(filepath, 'r', encoding='utf-8') as file:
                         content = file.read()
                         original_content = content  # オリジナルのコンテンツを保持
@@ -269,8 +301,21 @@ class ObsidianSummary:
         msg['From'] = from_addr
         msg['To'] = from_addr  # 送信者自身をToに設定
         msg['Bcc'] = ', '.join(valid_addresses)  # 全送信先をBccに設定
-        msg['Subject'] = f"Obsidianノート要約 {datetime.now().strftime('%Y-%m-%d')}"
-        body = "本日の要約対象ノート:\n\n" + notes_summary
+        # 検索対象期間の取得
+        start_datetime, end_datetime = self._get_search_period()
+        
+        # 期間に応じて件名と本文を変更
+        if start_datetime.date() == end_datetime.date():
+            date_str = start_datetime.strftime('%Y-%m-%d')
+            subject = f"Obsidianノート要約 {date_str}"
+            body_prefix = "本日の要約対象ノート"
+        else:
+            date_str = f"{start_datetime.strftime('%Y-%m-%d')}から{end_datetime.strftime('%Y-%m-%d')}"
+            subject = f"Obsidianノート要約 {date_str}"
+            body_prefix = "期間内の要約対象ノート"
+        
+        msg['Subject'] = subject
+        body = f"{body_prefix}:\n\n" + notes_summary
         msg.attach(MIMEText(body, 'plain'))
 
         # SMTP接続と送信
