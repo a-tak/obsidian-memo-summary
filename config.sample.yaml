@@ -1,0 +1,34 @@
+# Obsidianのvaultパス
+vault_path: "C:\\Users\\username\\Documents\\Obsidian\\MyVault"
+
+# 要約対象のタグ
+target_tag: "要約"
+
+# メール設定
+email:
+  from: "your-email@example.com"
+  to: "recipient@example.com"
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 587
+  password: "your-app-specific-password"
+
+# OpenAI API設定
+openai:
+  api_key: "sk-your-api-key-here"
+  model: "gpt-4"
+  max_tokens: 800
+  additional_prompt: |
+    以下の指示に従って要約を作成してください：
+    1. 各ノートの重要なポイントを3点にまとめる
+    2. 技術的な用語は可能な限り平易な言葉で説明する
+    3. アクションアイテムがある場合は、末尾に箇条書きでまとめる
+
+# スケジュール設定
+schedule:
+  time: "18:00"
+  timezone: "Asia/Tokyo"
+
+# ログ設定
+logging:
+  retention_days: 7
+  directory: "logs"
