@@ -56,11 +56,6 @@ pip install -r requirements.txt
        2. 技術的な用語は可能な限り平易な言葉で説明する
        3. アクションアイテムがある場合は、末尾に箇条書きでまとめる
 
-   # スケジュール設定
-   schedule:
-     time: "18:00"
-     timezone: "Asia/Tokyo"
-
    # ログ設定
    logging:
      retention_days: 7
