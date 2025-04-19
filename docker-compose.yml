@@ -1,0 +1,10 @@
+version: '3'
+services:
+  obsidian-summary:
+    build: .
+    volumes:
+      - e:/SynologyDrive/Obsidian/A-TAK:/app/vault
+      - ./config.yaml:/app/config.yaml
+      - ./logs:/app/logs
+    environment:
+      - TZ=Asia/Tokyo

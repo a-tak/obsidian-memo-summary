@@ -54,8 +54,28 @@ def cleanup_old_logs(log_dir, retention_days):
 class ObsidianSummary:
     def __init__(self, config_path='config.yaml'):
         """設定の初期化"""
-        self.load_config(config_path)
         self.logger = logging.getLogger(__name__)
+        self.load_config(config_path)
+        self.validate_vault_path()
+
+    def _convert_to_unc_path(self, path):
+        """Windowsの場合のみUNCパスに変換"""
+        if os.name == 'nt' and not path.startswith('\\\\'):
+            return '\\\\?\\' + path
+        return path
+
+    def validate_vault_path(self):
+        """vaultの場所を確認し、存在しない場合は例外を発生させる"""
+        vault_path = self.config['vault_path']
+        self.logger.info(f"Vault location: {vault_path}")
+        
+        # OSに応じてパスを変換
+        vault_path = self._convert_to_unc_path(vault_path)
+        
+        if not os.path.exists(vault_path):
+            error_msg = f"Vault path does not exist: {vault_path}"
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
 
     def load_config(self, config_path):
         """設定ファイルの読み込み"""
@@ -70,10 +90,7 @@ class ObsidianSummary:
         """指定したタグを持つノートファイルを検索"""
         notes = []
         try:
-            vault_path = self.config['vault_path']
-            # vault_pathをUNCパスに変換
-            if not vault_path.startswith('\\\\'):
-                vault_path = '\\\\?\\' + vault_path
+            vault_path = self._convert_to_unc_path(self.config['vault_path'])
             pattern = os.path.join(vault_path, '**/*.md')
             for filepath in glob.glob(pattern, recursive=True):
                 # ファイルの更新日時を取得
@@ -264,8 +281,14 @@ class ObsidianSummary:
 def main():
     """メイン実行関数"""
     try:
-        summarizer = ObsidianSummary()
-        setup_logging(summarizer.config)  # ロギング設定を初期化
+        # 設定を読み込んでロギングを初期化
+        config_path = 'config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        setup_logging(config)  # ロギング設定を先に初期化
+        
+        # ObsidianSummaryを初期化して実行
+        summarizer = ObsidianSummary(config_path)
         summarizer.run()
     except Exception as e:
         logging.error(f"プログラム実行エラー: {e}")
