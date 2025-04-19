@@ -7,7 +7,13 @@ target_tag: "要約"
 # メール設定
 email:
   from: "your-email@example.com"
-  to: "recipient@example.com"
+  # 配列形式で複数の送信先を指定する場合
+  to:
+    - "recipient1@example.com"
+    - "recipient2@example.com"
+    - "recipient3@example.com"
+  # または、カンマ区切りの文字列で指定することも可能
+  # to: "recipient1@example.com, recipient2@example.com, recipient3@example.com"
   smtp_server: "smtp.gmail.com"
   smtp_port: 587
   password: "your-app-specific-password"

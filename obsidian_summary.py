@@ -235,31 +235,66 @@ class ObsidianSummary:
             self.logger.error(f"AI要約エラー: {e}")
             return f"要約エラー: {str(e)[:100]}..."
 
+    def _validate_email(self, email):
+        """メールアドレスの簡易バリデーション"""
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return bool(re.match(pattern, email))
+
     def send_email(self, notes_summary):
-        """メール送信"""
+        """複数の宛先にメール送信"""
+        # 送信先アドレスのリストを取得
+        to_addresses = self.config['email'].get('to', [])
+        if isinstance(to_addresses, str):
+            # カンマ区切りの文字列の場合、リストに変換
+            to_addresses = [addr.strip() for addr in to_addresses.split(',')]
+        elif not isinstance(to_addresses, list):
+            to_addresses = [str(to_addresses)]
+
+        # 無効なメールアドレスをフィルタリング
+        valid_addresses = []
+        for addr in to_addresses:
+            if self._validate_email(addr):
+                valid_addresses.append(addr)
+            else:
+                self.logger.warning(f"無効なメールアドレス: {addr}")
+
+        if not valid_addresses:
+            error_msg = "有効なメールアドレスが指定されていません"
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        # メール送信の準備
         msg = MIMEMultipart()
-        msg['From'] = self.config['email']['from']
-        msg['To'] = self.config['email']['to']
+        from_addr = self.config['email']['from']
+        msg['From'] = from_addr
+        msg['To'] = from_addr  # 送信者自身をToに設定
+        msg['Bcc'] = ', '.join(valid_addresses)  # 全送信先をBccに設定
         msg['Subject'] = f"Obsidianノート要約 {datetime.now().strftime('%Y-%m-%d')}"
-        
         body = "本日の要約対象ノート:\n\n" + notes_summary
         msg.attach(MIMEText(body, 'plain'))
-        
+
+        # SMTP接続と送信
         try:
             server = smtplib.SMTP(
                 self.config['email']['smtp_server'],
                 self.config['email']['smtp_port']
             )
             server.starttls()
-            server.login(
-                self.config['email']['from'],
-                self.config['email']['password']
-            )
-            server.send_message(msg)
+            server.login(from_addr, self.config['email']['password'])
+
+            try:
+                server.send_message(msg)
+                self.logger.info(f"メール送信成功 - 送信先数: {len(valid_addresses)}")
+                for addr in valid_addresses:
+                    self.logger.info(f"送信先: {addr}")
+            except Exception as e:
+                self.logger.error(f"メール送信エラー: {e}")
+                raise
+
             server.quit()
-            self.logger.info(f"メール送信成功\n送信内容:\n{body}")
+
         except Exception as e:
-            self.logger.error(f"メール送信エラー: {e}")
+            self.logger.error(f"SMTP接続/認証エラー: {e}")
             raise
 
     def run(self):
