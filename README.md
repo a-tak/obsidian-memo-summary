@@ -72,6 +72,33 @@ pip install -r requirements.txt
 python obsidian_summary.py
 ```
 
+### 4. Docker環境での実行
+
+1. ボリュームマウントの設定
+docker-compose.ymlの`volumes`セクションでObsidianのvaultパスを指定します：
+```yaml
+volumes:
+  - /path/to/your/vault:/app/vault  # Obsidianのvaultパスをマウント
+  - ./config.yaml:/app/config.yaml   # 設定ファイル
+  - ./logs:/app/logs                 # ログディレクトリ
+```
+
+2. config.yamlの設定
+Docker環境では、vault_pathをコンテナ内のマウントポイントに合わせて設定します：
+```yaml
+vault_path: "/app/vault"  # Dockerコンテナ内のパス
+```
+
+3. Docker Composeでの実行
+```bash
+docker-compose up --build
+```
+
+注意点：
+- Windowsでは、vault_pathのマウント設定で適切なドライブパスを指定（例：`c:/Users/...:/app/vault`）
+- config.yamlのvault_pathは常に`/app/vault`を使用（コンテナ内のパス）
+- タイムゾーンはDocker Composeファイルで`TZ=Asia/Tokyo`として設定済み
+
 ## セキュリティについて
 
 - `config.yaml`はGit管理対象外（.gitignoreに設定済み）
