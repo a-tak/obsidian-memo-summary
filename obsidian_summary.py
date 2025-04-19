@@ -120,7 +120,9 @@ class ObsidianSummary:
 
                         # タグの確認（フロントマター内）
                         tags = frontmatter.get('tags', [])
-                        if isinstance(tags, str):
+                        if tags is None:
+                            tags = []
+                        elif isinstance(tags, str):
                             tags = [tags]  # 文字列の場合、リストに変換
 
                         # タグの処理
@@ -172,7 +174,9 @@ class ObsidianSummary:
 
             # タグの確認（フロントマター内）
             tags = frontmatter.get('tags', [])
-            if isinstance(tags, str):
+            if tags is None:
+                tags = []
+            elif isinstance(tags, str):
                 tags = [tags]
 
             # ファイル名から拡張子を除去してタイトルとして使用
