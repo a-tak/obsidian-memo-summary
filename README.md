@@ -56,11 +56,6 @@ pip install -r requirements.txt
        2. 技術的な用語は可能な限り平易な言葉で説明する
        3. アクションアイテムがある場合は、末尾に箇条書きでまとめる
 
-   # スケジュール設定
-   schedule:
-     time: "18:00"
-     timezone: "Asia/Tokyo"
-
    # ログ設定
    logging:
      retention_days: 7
@@ -71,6 +66,33 @@ pip install -r requirements.txt
 ```bash
 python obsidian_summary.py
 ```
+
+### 4. Docker環境での実行
+
+1. ボリュームマウントの設定
+docker-compose.ymlの`volumes`セクションでObsidianのvaultパスを指定します：
+```yaml
+volumes:
+  - /path/to/your/vault:/app/vault  # Obsidianのvaultパスをマウント
+  - ./config.yaml:/app/config.yaml   # 設定ファイル
+  - ./logs:/app/logs                 # ログディレクトリ
+```
+
+2. config.yamlの設定
+Docker環境では、vault_pathをコンテナ内のマウントポイントに合わせて設定します：
+```yaml
+vault_path: "/app/vault"  # Dockerコンテナ内のパス
+```
+
+3. Docker Composeでの実行
+```bash
+docker-compose up --build
+```
+
+注意点：
+- Windowsでは、vault_pathのマウント設定で適切なドライブパスを指定（例：`c:/Users/...:/app/vault`）
+- config.yamlのvault_pathは常に`/app/vault`を使用（コンテナ内のパス）
+- タイムゾーンはDocker Composeファイルで`TZ=Asia/Tokyo`として設定済み
 
 ## セキュリティについて
 
