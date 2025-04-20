@@ -234,15 +234,6 @@ class ObsidianSummary:
         # 全てのノートの内容を結合
         all_content = "\n\n---\n\n".join(combined_content)
         
-        # AIへ送信するノート内容をログに記録
-        self.logger.info("=== AIへ送信するノート内容 ===")
-        self.logger.info(all_content)
-        
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.config['openai']['api_key']}"
-        }
-        
         # 基本のシステムプロンプト
         system_prompt = "あなたは文章を要約する専門家です。各ノートは【タイトル】で区切られています。タイトルが付いているノートは、そのタイトルの文脈を考慮して要約してください。"
         
@@ -254,6 +245,15 @@ class ObsidianSummary:
         # システムプロンプトをログに記録
         self.logger.info("=== システムプロンプト ===")
         self.logger.info(system_prompt)
+
+        # AIへ送信するノート内容をログに記録
+        self.logger.info("=== AIへ送信するノート内容 ===")
+        self.logger.info(all_content)
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.config['openai']['api_key']}"
+        }
 
         data = {
             "model": self.config['openai']['model'],
