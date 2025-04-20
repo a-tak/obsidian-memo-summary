@@ -234,6 +234,10 @@ class ObsidianSummary:
         # 全てのノートの内容を結合
         all_content = "\n\n---\n\n".join(combined_content)
         
+        # AIへ送信するノート内容をログに記録
+        self.logger.info("=== AIへ送信するノート内容 ===")
+        self.logger.info(all_content)
+        
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.config['openai']['api_key']}"
@@ -246,6 +250,10 @@ class ObsidianSummary:
         additional_prompt = self.config['openai'].get('additional_prompt', '')
         if additional_prompt:
             system_prompt = f"{system_prompt} {additional_prompt}"
+            
+        # システムプロンプトをログに記録
+        self.logger.info("=== システムプロンプト ===")
+        self.logger.info(system_prompt)
 
         data = {
             "model": self.config['openai']['model'],
