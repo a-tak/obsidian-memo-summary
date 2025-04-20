@@ -276,6 +276,12 @@ class ObsidianSummary:
 
     def send_email(self, notes_summary):
         """複数の宛先にメール送信"""
+        # メール送信が無効な場合はスキップ
+        if not self.config['email'].get('enabled', True):
+            self.logger.info("メール送信がスキップされました（設定で無効化されています）")
+            self.logger.info("要約結果:\n" + notes_summary)
+            return
+
         # 送信先アドレスのリストを取得
         to_addresses = self.config['email'].get('to', [])
         if isinstance(to_addresses, str):
@@ -357,8 +363,14 @@ class ObsidianSummary:
             self.logger.info(f"ノート要約開始: {len(tagged_notes)}件のノートを処理")
             all_summaries = self.summarize_with_ai(tagged_notes)
             
+            # メール送信の実行（無効の場合は内部でスキップ）
             self.send_email(all_summaries)
-            self.logger.info("タスク完了")
+            
+            # メール送信の状態に応じたログ出力
+            if self.config['email'].get('enabled', True):
+                self.logger.info("タスク完了（メール送信実行）")
+            else:
+                self.logger.info("タスク完了（メール送信スキップ）")
             
         except Exception as e:
             self.logger.error(f"タスク実行エラー: {e}")
