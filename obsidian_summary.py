@@ -112,6 +112,27 @@ class ObsidianSummary:
         
         return start_datetime, end_datetime
 
+    def _process_frontmatter(self, content, filepath):
+        """フロントマターを処理し、テンプレート構文を処理可能な形に変換"""
+        if not content.startswith('---'):
+            return {}, content
+
+        frontmatter_end = content.find('---', 3)
+        if frontmatter_end == -1:
+            return {}, content
+
+        frontmatter_str = content[3:frontmatter_end]
+        # テンプレート構文を一時的な値に置き換え
+        frontmatter_str = re.sub(r'\{\{[^}]+\}\}', 'TEMPLATE_VALUE', frontmatter_str)
+        
+        try:
+            frontmatter = yaml.safe_load(frontmatter_str)
+            self.logger.info(f"フロントマター処理成功: {filepath}")
+            return frontmatter, content[frontmatter_end + 3:]
+        except yaml.YAMLError as e:
+            self.logger.warning(f"フロントマターの解析に失敗しましたが、処理を継続します: {filepath} - {e}")
+            return {}, content
+
     def find_tagged_notes(self):
         """指定したタグを持つノートファイルを検索"""
         notes = []
@@ -136,19 +157,8 @@ class ObsidianSummary:
                     with open(filepath, 'r', encoding='utf-8') as file:
                         content = file.read()
                         original_content = content  # オリジナルのコンテンツを保持
-                        # フロントマターの抽出
-                        frontmatter = {}
-                        if content.startswith('---'):
-                            try:
-                                frontmatter_end = content.find('---', 3)
-                                if frontmatter_end != -1:
-                                    frontmatter_str = content[3:frontmatter_end]
-                                    frontmatter = yaml.safe_load(frontmatter_str)
-                                    self.logger.info(f"フロントマター: {frontmatter}")  # ログを追加
-                                    content = content[frontmatter_end + 3:]  # フロントマターを除いたコンテンツ
-                            except yaml.YAMLError as e:
-                                self.logger.error(f"フロントマターの解析に失敗: {filepath} - {e}")
-                                continue
+                        # フロントマターの抽出と処理
+                        frontmatter, content = self._process_frontmatter(content, filepath)
 
                         # タグの確認（フロントマター内）
                         tags = frontmatter.get('tags', [])
@@ -193,16 +203,8 @@ class ObsidianSummary:
         for filepath, content in notes:
             filename = os.path.basename(filepath)
             
-            # フロントマターの確認
-            frontmatter = {}
-            if content.startswith('---'):
-                try:
-                    frontmatter_end = content.find('---', 3)
-                    if frontmatter_end != -1:
-                        frontmatter_str = content[3:frontmatter_end]
-                        frontmatter = yaml.safe_load(frontmatter_str)
-                except yaml.YAMLError:
-                    pass
+            # フロントマターの処理
+            frontmatter, _ = self._process_frontmatter(content, filepath)
 
             # タグの確認（フロントマター内）
             tags = frontmatter.get('tags', [])
