@@ -6,6 +6,7 @@ target_tag: "要約"
 
 # メール設定
 email:
+  enabled: true  # メール送信の有効/無効を制御（false: メール送信をスキップし、ログにのみ出力）
   from: "your-email@example.com"
   # 配列形式で複数の送信先を指定する場合
   to:
