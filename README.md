@@ -54,8 +54,8 @@ pip install -r requirements.txt
    # OpenAI API設定
    openai:
      api_key: "your_openai_api_key"
-     model: "gpt-4o-mini"
-     max_tokens: 800  # 日本語400文字の要約に対応
+     model: "o4-mini"
+     max_tokens: 8000  
      additional_prompt: |
        以下の指示に従って要約を作成してください：
        1. 各ノートの重要なポイントを3点にまとめる
