@@ -216,20 +216,23 @@ class ObsidianSummary:
             # ファイル名から拡張子を除去してタイトルとして使用
             title = os.path.splitext(filename)[0]
 
-            # フロントマターにタグがある場合は全文を要約し、タイトルを含める
+            # コンテンツのクリーニング（フロントマターとタグの削除）
+            cleaned_content = self.clean_content(content)
+
+            # フロントマターにタグがある場合は全文を要約
             if self.config['target_tag'] in tags:
-                target_content = f"# {title}\n\n{content}"
+                target_content = cleaned_content
             else:
                 # タグを含む箇条書きのみを抽出
                 target_tag_with_hash = '#' + self.config['target_tag']
-                lines = content.splitlines()
+                lines = cleaned_content.splitlines()
                 target_content = "\n".join([
                     line for line in lines
                     if line.strip().startswith('- ') and target_tag_with_hash in line
                 ])
-                
-            clean_content = self.clean_content(target_content)
-            combined_content.append(f"【{title}】\n{clean_content}")
+
+            # タイトルを追加
+            combined_content.append(f"【{title}】\n{target_content}")
         
         # 全てのノートの内容を結合
         all_content = "\n\n---\n\n".join(combined_content)
