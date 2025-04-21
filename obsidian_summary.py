@@ -2,37 +2,35 @@ import os
 import glob
 import re
 import yaml
-import yaml
 import smtplib
 import logging
-import shutil
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 import requests
 
+
 def setup_logging(config):
     """ロギングの設定とログローテーションの実装"""
     log_dir = config.get('logging', {}).get('directory', 'logs')
     os.makedirs(log_dir, exist_ok=True)
-    
+
     # 日付付きのログファイル名を生成
     current_date = datetime.now().strftime('%Y-%m-%d')
     log_file = os.path.join(log_dir, f'obsidian_summary_{current_date}.log')
-    
+
     # ロギングの設定
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file, encoding='utf-8'),
-            logging.StreamHandler()
-        ]
-    )
-    
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s',
+                        handlers=[
+                            logging.FileHandler(log_file, encoding='utf-8'),
+                            logging.StreamHandler()
+                        ])
+
     # 古いログファイルの削除
     retention_days = config.get('logging', {}).get('retention_days', 7)
     cleanup_old_logs(log_dir, retention_days)
+
 
 def cleanup_old_logs(log_dir, retention_days):
     """指定日数より古いログファイルを削除"""
@@ -40,10 +38,10 @@ def cleanup_old_logs(log_dir, retention_days):
     for filename in os.listdir(log_dir):
         if not filename.endswith('.log'):
             continue
-        
+
         file_path = os.path.join(log_dir, filename)
         file_date = datetime.fromtimestamp(os.path.getctime(file_path))
-        
+
         if (current_date - file_date).days > retention_days:
             try:
                 os.remove(file_path)
@@ -51,7 +49,9 @@ def cleanup_old_logs(log_dir, retention_days):
             except Exception as e:
                 logging.error(f"ログファイルの削除に失敗: {filename} - {e}")
 
+
 class ObsidianSummary:
+
     def __init__(self, config_path='config.yaml'):
         """設定の初期化"""
         self.logger = logging.getLogger(__name__)
@@ -68,10 +68,10 @@ class ObsidianSummary:
         """vaultの場所を確認し、存在しない場合は例外を発生させる"""
         vault_path = self.config['vault_path']
         self.logger.info(f"Vault location: {vault_path}")
-        
+
         # OSに応じてパスを変換
         vault_path = self._convert_to_unc_path(vault_path)
-        
+
         if not os.path.exists(vault_path):
             error_msg = f"Vault path does not exist: {vault_path}"
             self.logger.error(error_msg)
@@ -90,26 +90,29 @@ class ObsidianSummary:
         """検索対象期間の開始時刻と終了時刻を計算"""
         now = datetime.now()
         search_period = self.config.get('search_period', {})
-        
+
         # 日数の取得（デフォルトは1日）
         days = search_period.get('days', 1)
         if not isinstance(days, int) or days < 1:
             self.logger.warning("無効な日数指定。デフォルトの1日を使用します。")
             days = 1
-        
+
         # 開始・終了時刻の取得
         try:
-            start_time = datetime.strptime(search_period.get('start_time', '00:00'), '%H:%M').time()
-            end_time = datetime.strptime(search_period.get('end_time', '23:59'), '%H:%M').time()
+            start_time = datetime.strptime(
+                search_period.get('start_time', '00:00'), '%H:%M').time()
+            end_time = datetime.strptime(
+                search_period.get('end_time', '23:59'), '%H:%M').time()
         except ValueError as e:
             self.logger.warning(f"時刻形式が無効です: {e}. デフォルト値を使用します。")
             start_time = datetime.strptime('00:00', '%H:%M').time()
             end_time = datetime.strptime('23:59', '%H:%M').time()
-        
+
         # 期間の計算
         end_datetime = datetime.combine(now.date(), end_time)
-        start_datetime = datetime.combine(now.date() - timedelta(days=days-1), start_time)
-        
+        start_datetime = datetime.combine(
+            now.date() - timedelta(days=days - 1), start_time)
+
         return start_datetime, end_datetime
 
     def _process_frontmatter(self, content, filepath):
@@ -123,14 +126,16 @@ class ObsidianSummary:
 
         frontmatter_str = content[3:frontmatter_end]
         # テンプレート構文を一時的な値に置き換え
-        frontmatter_str = re.sub(r'\{\{[^}]+\}\}', 'TEMPLATE_VALUE', frontmatter_str)
-        
+        frontmatter_str = re.sub(r'\{\{[^}]+\}\}', 'TEMPLATE_VALUE',
+                                 frontmatter_str)
+
         try:
             frontmatter = yaml.safe_load(frontmatter_str)
             self.logger.info(f"フロントマター処理成功: {filepath}")
             return frontmatter, content[frontmatter_end + 3:]
         except yaml.YAMLError as e:
-            self.logger.warning(f"フロントマターの解析に失敗しましたが、処理を継続します: {filepath} - {e}")
+            self.logger.warning(
+                f"フロントマターの解析に失敗しましたが、処理を継続します: {filepath} - {e}")
             return {}, content
 
     def find_tagged_notes(self):
@@ -139,26 +144,28 @@ class ObsidianSummary:
         try:
             vault_path = self._convert_to_unc_path(self.config['vault_path'])
             pattern = os.path.join(vault_path, '**/*.md')
-            
+
             # 検索対象期間の取得
             start_datetime, end_datetime = self._get_search_period()
             self.logger.info(f"検索対象期間: {start_datetime} から {end_datetime} まで")
-            
+
             for filepath in glob.glob(pattern, recursive=True):
                 # ファイルの更新日時を取得
                 try:
-                    last_modified = datetime.fromtimestamp(os.path.getmtime(filepath))
+                    last_modified = datetime.fromtimestamp(
+                        os.path.getmtime(filepath))
                 except FileNotFoundError as e:
                     self.logger.error(f"ファイルが見つかりません: {filepath} - {e}")
                     continue
-                
+
                 # 指定された期間内かどうか確認
                 if start_datetime <= last_modified <= end_datetime:
                     with open(filepath, 'r', encoding='utf-8') as file:
                         content = file.read()
                         original_content = content  # オリジナルのコンテンツを保持
                         # フロントマターの抽出と処理
-                        frontmatter, content = self._process_frontmatter(content, filepath)
+                        frontmatter, content = self._process_frontmatter(
+                            content, filepath)
 
                         # タグの確認（フロントマター内）
                         tags = frontmatter.get('tags', [])
@@ -174,15 +181,20 @@ class ObsidianSummary:
                             self.logger.info(f"フロントマターにタグ付きノートを検出: {filepath}")
                         else:
                             # フロントマーにタグがない場合のみ、コンテンツ内のタグを確認
-                            target_tag_with_hash = '#' + self.config['target_tag']
+                            target_tag_with_hash = '#' + self.config[
+                                'target_tag']
                             if target_tag_with_hash in content:
                                 bullet_lines = []
                                 for line in content.split('\n'):
-                                    if line.strip().startswith('- ') and target_tag_with_hash in line:
+                                    if line.strip().startswith(
+                                            '- '
+                                    ) and target_tag_with_hash in line:
                                         bullet_lines.append(line)
                                 if bullet_lines:
-                                    notes.append((filepath, '\n'.join(bullet_lines)))
-                                    self.logger.info(f"コンテンツ内のタグ付き箇条書きを検出: {filepath}")
+                                    notes.append(
+                                        (filepath, '\n'.join(bullet_lines)))
+                                    self.logger.info(
+                                        f"コンテンツ内のタグ付き箇条書きを検出: {filepath}")
             return notes
         except Exception as e:
             self.logger.error(f"ノート検索中にエラー: {e}")
@@ -199,10 +211,10 @@ class ObsidianSummary:
     def summarize_with_ai(self, notes):
         """OpenAI APIを使用して複数のノートをまとめて要約"""
         combined_content = []
-        
+
         for filepath, content in notes:
             filename = os.path.basename(filepath)
-            
+
             # フロントマターの処理
             frontmatter, _ = self._process_frontmatter(content, filepath)
 
@@ -216,32 +228,35 @@ class ObsidianSummary:
             # ファイル名から拡張子を除去してタイトルとして使用
             title = os.path.splitext(filename)[0]
 
-            # フロントマターにタグがある場合は全文を要約し、タイトルを含める
+            # コンテンツのクリーニング（フロントマターとタグの削除）
+            cleaned_content = self.clean_content(content)
+
+            # フロントマターにタグがある場合は全文を要約
             if self.config['target_tag'] in tags:
-                target_content = f"# {title}\n\n{content}"
+                target_content = cleaned_content
             else:
                 # タグを含む箇条書きのみを抽出
                 target_tag_with_hash = '#' + self.config['target_tag']
-                lines = content.splitlines()
+                lines = cleaned_content.splitlines()
                 target_content = "\n".join([
-                    line for line in lines
-                    if line.strip().startswith('- ') and target_tag_with_hash in line
+                    line for line in lines if line.strip().startswith('- ')
+                    and target_tag_with_hash in line
                 ])
-                
-            clean_content = self.clean_content(target_content)
-            combined_content.append(f"【{title}】\n{clean_content}")
-        
+
+            # タイトルを追加
+            combined_content.append(f"【{title}】\n{target_content}")
+
         # 全てのノートの内容を結合
         all_content = "\n\n---\n\n".join(combined_content)
-        
+
         # 基本のシステムプロンプト
         system_prompt = "あなたは文章を要約する専門家です。各ノートは【タイトル】で区切られています。タイトルが付いているノートは、そのタイトルの文脈を考慮して要約してください。"
-        
+
         # 設定から追加のプロンプトを取得
         additional_prompt = self.config['openai'].get('additional_prompt', '')
         if additional_prompt:
             system_prompt = f"{system_prompt} {additional_prompt}"
-            
+
         # システムプロンプトをログに記録
         self.logger.info("=== システムプロンプト ===")
         self.logger.info(system_prompt)
@@ -249,27 +264,41 @@ class ObsidianSummary:
         # AIへ送信するノート内容をログに記録
         self.logger.info("=== AIへ送信するノート内容 ===")
         self.logger.info(all_content)
-        
+
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.config['openai']['api_key']}"
         }
 
         data = {
-            "model": self.config['openai']['model'],
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": all_content}
-            ],
-            "max_tokens": self.config['openai']['max_tokens']
+            "model":
+            self.config['openai']['model'],
+            "messages": [{
+                "role": "developer",
+                "content": [{
+                    "type": "text",
+                    "text": system_prompt
+                }]
+            }, {
+                "role": "user",
+                "content": [{
+                    "type": "text",
+                    "text": all_content
+                }]
+            }],
+            "reasoning_effort":
+            "medium",
+            "max_completion_tokens":
+            self.config['openai']['max_tokens'],
+            "store":
+            True
         }
-        
+
         try:
             response = requests.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers=headers,
-                json=data
-            )
+                json=data)
             response.raise_for_status()
             summary = response.json()['choices'][0]['message']['content']
             return summary
@@ -319,7 +348,7 @@ class ObsidianSummary:
         msg['Bcc'] = ', '.join(valid_addresses)  # 全送信先をBccに設定
         # 検索対象期間の取得
         start_datetime, end_datetime = self._get_search_period()
-        
+
         # 期間に応じて件名と本文を変更
         if start_datetime.date() == end_datetime.date():
             date_str = start_datetime.strftime('%Y-%m-%d')
@@ -329,17 +358,15 @@ class ObsidianSummary:
             date_str = f"{start_datetime.strftime('%Y-%m-%d')}から{end_datetime.strftime('%Y-%m-%d')}"
             subject = f"Obsidianノート要約 {date_str}"
             body_prefix = "期間内の要約対象ノート"
-        
+
         msg['Subject'] = subject
         body = f"{body_prefix}:\n\n" + notes_summary
         msg.attach(MIMEText(body, 'plain'))
 
         # SMTP接続と送信
         try:
-            server = smtplib.SMTP(
-                self.config['email']['smtp_server'],
-                self.config['email']['smtp_port']
-            )
+            server = smtplib.SMTP(self.config['email']['smtp_server'],
+                                  self.config['email']['smtp_port'])
             server.starttls()
             server.login(from_addr, self.config['email']['password'])
 
@@ -363,26 +390,27 @@ class ObsidianSummary:
         try:
             self.logger.info("Obsidian要約タスク開始")
             tagged_notes = self.find_tagged_notes()
-            
+
             if not tagged_notes:
                 self.logger.info("要約対象のノートが見つかりませんでした")
                 return
-            
+
             self.logger.info(f"ノート要約開始: {len(tagged_notes)}件のノートを処理")
             all_summaries = self.summarize_with_ai(tagged_notes)
-            
+
             # メール送信の実行（無効の場合は内部でスキップ）
             self.send_email(all_summaries)
-            
+
             # メール送信の状態に応じたログ出力
             if self.config['email'].get('enabled', True):
                 self.logger.info("タスク完了（メール送信実行）")
             else:
                 self.logger.info("タスク完了（メール送信スキップ）")
-            
+
         except Exception as e:
             self.logger.error(f"タスク実行エラー: {e}")
             raise
+
 
 def main():
     """メイン実行関数"""
@@ -392,13 +420,14 @@ def main():
         with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
         setup_logging(config)  # ロギング設定を先に初期化
-        
+
         # ObsidianSummaryを初期化して実行
         summarizer = ObsidianSummary(config_path)
         summarizer.run()
     except Exception as e:
         logging.error(f"プログラム実行エラー: {e}")
         raise
+
 
 if __name__ == "__main__":
     main()
