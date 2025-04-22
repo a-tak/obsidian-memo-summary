@@ -246,8 +246,18 @@ class ObsidianSummary:
             # タイトルを追加
             combined_content.append(f"【{title}】\n{target_content}")
 
+        # コンテンツが空の場合は要約をスキップ
+        if not combined_content:
+            message = "要約対象のノートが見つかりませんでした。AI要約をスキップします。"
+            self.logger.info(message)
+            return message
+
         # 全てのノートの内容を結合
         all_content = "\n\n---\n\n".join(combined_content)
+
+        # AIへ送信するノート内容をログに記録
+        self.logger.info("=== AIへ送信するノート内容 ===")
+        self.logger.info(all_content)
 
         # 基本のシステムプロンプト
         system_prompt = "あなたは文章を要約する専門家です。各ノートは【タイトル】で区切られています。タイトルが付いているノートは、そのタイトルの文脈を考慮して要約してください。"
@@ -260,10 +270,6 @@ class ObsidianSummary:
         # システムプロンプトをログに記録
         self.logger.info("=== システムプロンプト ===")
         self.logger.info(system_prompt)
-
-        # AIへ送信するノート内容をログに記録
-        self.logger.info("=== AIへ送信するノート内容 ===")
-        self.logger.info(all_content)
 
         headers = {
             "Content-Type": "application/json",
@@ -394,7 +400,10 @@ class ObsidianSummary:
             tagged_notes = self.find_tagged_notes()
 
             if not tagged_notes:
-                self.logger.info("要約対象のノートが見つかりませんでした")
+                message = "要約対象のノートが見つかりませんでした。AI要約をスキップします。"
+                self.logger.info(message)
+                # メール送信の実行（無効の場合は内部でスキップ）
+                self.send_email(message)
                 return
 
             self.logger.info(f"ノート要約開始: {len(tagged_notes)}件のノートを処理")
