@@ -313,6 +313,9 @@ class ObsidianSummary:
 
     def send_email(self, notes_summary):
         """複数の宛先にメール送信"""
+        # 要約内容を常にログに記録
+        self.logger.info("=== 要約内容 ===")
+        self.logger.info(notes_summary)
         # メール送信が無効な場合はスキップ
         if not self.config['email'].get('enabled', True):
             self.logger.info("メール送信がスキップされました（設定で無効化されています）")
