@@ -319,7 +319,6 @@ class ObsidianSummary:
         # メール送信が無効な場合はスキップ
         if not self.config['email'].get('enabled', True):
             self.logger.info("メール送信がスキップされました（設定で無効化されています）")
-            self.logger.info("要約結果:\n" + notes_summary)
             return
 
         # 送信先アドレスのリストを取得
