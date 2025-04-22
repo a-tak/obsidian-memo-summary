@@ -180,21 +180,13 @@ class ObsidianSummary:
                             notes.append((filepath, original_content))
                             self.logger.info(f"フロントマターにタグ付きノートを検出: {filepath}")
                         else:
-                            # フロントマーにタグがない場合のみ、コンテンツ内のタグを確認
-                            target_tag_with_hash = '#' + self.config[
-                                'target_tag']
+                            # フロントマタータグなし → 本文中のタグを含む全行を抽出
+                            target_tag_with_hash = '#' + self.config['target_tag']
                             if target_tag_with_hash in content:
-                                bullet_lines = []
-                                for line in content.split('\n'):
-                                    if line.strip().startswith(
-                                            '- '
-                                    ) and target_tag_with_hash in line:
-                                        bullet_lines.append(line)
-                                if bullet_lines:
-                                    notes.append(
-                                        (filepath, '\n'.join(bullet_lines)))
-                                    self.logger.info(
-                                        f"コンテンツ内のタグ付き箇条書きを検出: {filepath}")
+                                # タグを含むすべての行を取得
+                                tagged_lines = [line for line in content.splitlines() if target_tag_with_hash in line]
+                                notes.append((filepath, '\n'.join(tagged_lines)))
+                                self.logger.info(f"コンテンツ内のタグ付き行を検出: {filepath}")
             return notes
         except Exception as e:
             self.logger.error(f"ノート検索中にエラー: {e}")
@@ -228,21 +220,29 @@ class ObsidianSummary:
             # ファイル名から拡張子を除去してタイトルとして使用
             title = os.path.splitext(filename)[0]
 
-            # コンテンツのクリーニング（フロントマターとタグの削除）
-            cleaned_content = self.clean_content(content)
+            # フロントマターと本文から対象箇条書きまたは全体内容を取得
+            # コンテンツ本文（フロントマター除去後）を使用
+            body_content = content
 
-            # フロントマターにタグがある場合は全文を要約
             if self.config['target_tag'] in tags:
-                target_content = cleaned_content
+                # フロントマターにタグがある場合は全文を要約
+                target_raw = body_content
             else:
-                # タグを含む箇条書きのみを抽出
+                # 本文中のタグ付き箇条書きを抽出（インデント無視）
                 target_tag_with_hash = '#' + self.config['target_tag']
-                lines = cleaned_content.splitlines()
-                target_content = "\n".join([
-                    line for line in lines if line.strip().startswith('- ')
-                    and target_tag_with_hash in line
-                ])
+                lines = body_content.splitlines()
+                target_lines = [
+                    line for line in lines
+                    if target_tag_with_hash in line and line.strip().startswith('- ')
+                ]
+                target_raw = "\n".join(target_lines)
 
+            # タグ行を削除して余分な空白をトリム
+            target_content = re.sub(r'#\w+', '', target_raw).strip()
+
+            # タグ付きコンテンツがない場合はスキップ
+            if not target_content:
+                continue
             # タイトルを追加
             combined_content.append(f"【{title}】\n{target_content}")
 
@@ -313,10 +313,12 @@ class ObsidianSummary:
 
     def send_email(self, notes_summary):
         """複数の宛先にメール送信"""
+        # 要約内容を常にログに記録
+        self.logger.info("=== 要約内容 ===")
+        self.logger.info(notes_summary)
         # メール送信が無効な場合はスキップ
         if not self.config['email'].get('enabled', True):
             self.logger.info("メール送信がスキップされました（設定で無効化されています）")
-            self.logger.info("要約結果:\n" + notes_summary)
             return
 
         # 送信先アドレスのリストを取得
