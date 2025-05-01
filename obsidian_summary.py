@@ -181,12 +181,27 @@ class ObsidianSummary:
                             self.logger.info(f"フロントマターにタグ付きノートを検出: {filepath}")
                         else:
                             # フロントマタータグなし → 本文中のタグを含む全行を抽出
-                            target_tag_with_hash = '#' + self.config['target_tag']
-                            if target_tag_with_hash in content:
-                                # タグを含むすべての行を取得
-                                tagged_lines = [line for line in content.splitlines() if target_tag_with_hash in line]
-                                notes.append((filepath, '\n'.join(tagged_lines)))
-                                self.logger.info(f"コンテンツ内のタグ付き行を検出: {filepath}")
+                            target_tag = self.config['target_tag']
+                            if f'#{target_tag}' in content:
+                                # タグを含むすべての行を取得（箇条書きのみ）
+                                lines = content.splitlines()
+                                tagged_lines = []
+                                for line in lines:
+                                    # タグと箇条書きの検出を個別に行い、結果をログ出力
+                                    tag_match = re.search(rf'#{target_tag}(?:$|\s|[^\w#])', line)
+                                    bullet_match = line.strip().startswith('-') or re.match(r'\s*-.*', line)
+                                    
+                                    if tag_match:
+                                        self.logger.info(f"タグを検出: {line}")
+                                    if bullet_match:
+                                        self.logger.info(f"箇条書きを検出: {line}")
+                                    
+                                    if tag_match and bullet_match:
+                                        tagged_lines.append(line)
+                                        self.logger.info(f"タグ付き箇条書き行を検出: {line}")
+                                if tagged_lines:
+                                    notes.append((filepath, '\n'.join(tagged_lines)))
+                                    self.logger.info(f"コンテンツ内のタグ付き行を検出: {filepath}")
             return notes
         except Exception as e:
             self.logger.error(f"ノート検索中にエラー: {e}")
@@ -228,14 +243,9 @@ class ObsidianSummary:
                 # フロントマターにタグがある場合は全文を要約
                 target_raw = body_content
             else:
-                # 本文中のタグ付き箇条書きを抽出（インデント無視）
+                # 本文中のタグ付き箇条書きを抽出
                 target_tag_with_hash = '#' + self.config['target_tag']
-                lines = body_content.splitlines()
-                target_lines = [
-                    line for line in lines
-                    if target_tag_with_hash in line and line.strip().startswith('- ')
-                ]
-                target_raw = "\n".join(target_lines)
+                target_raw = body_content
 
             # タグ行を削除して余分な空白をトリム
             target_content = re.sub(r'#\w+', '', target_raw).strip()
@@ -406,8 +416,14 @@ class ObsidianSummary:
                 self.send_email(message)
                 return
 
-            self.logger.info(f"ノート要約開始: {len(tagged_notes)}件のノートを処理")
-            all_summaries = self.summarize_with_ai(tagged_notes)
+            # skip_summaryオプションの確認
+            if self.config['openai'].get('skip_summary', False):
+                message = f"AI要約がスキップされました（設定でスキップが有効）\n\n対象ノート数: {len(tagged_notes)}件"
+                self.logger.info("AI要約スキップ（設定で無効化されています）")
+                all_summaries = message
+            else:
+                self.logger.info(f"ノート要約開始: {len(tagged_notes)}件のノートを処理")
+                all_summaries = self.summarize_with_ai(tagged_notes)
 
             # メール送信の実行（無効の場合は内部でスキップ）
             self.send_email(all_summaries)
