@@ -406,8 +406,14 @@ class ObsidianSummary:
                 self.send_email(message)
                 return
 
-            self.logger.info(f"ノート要約開始: {len(tagged_notes)}件のノートを処理")
-            all_summaries = self.summarize_with_ai(tagged_notes)
+            # skip_summaryオプションの確認
+            if self.config['openai'].get('skip_summary', False):
+                message = f"AI要約がスキップされました（設定でスキップが有効）\n\n対象ノート数: {len(tagged_notes)}件"
+                self.logger.info("AI要約スキップ（設定で無効化されています）")
+                all_summaries = message
+            else:
+                self.logger.info(f"ノート要約開始: {len(tagged_notes)}件のノートを処理")
+                all_summaries = self.summarize_with_ai(tagged_notes)
 
             # メール送信の実行（無効の場合は内部でスキップ）
             self.send_email(all_summaries)
