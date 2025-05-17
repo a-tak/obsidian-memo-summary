@@ -180,7 +180,7 @@ class ObsidianSummary:
                             notes.append((filepath, original_content))
                             self.logger.info(f"フロントマターにタグ付きノートを検出: {filepath}")
                         else:
-                            # フロントマタータグなし → 本文中のタグを含む全行を抽出
+                            # 本文中のタグ付き箇条書きを抽出
                             target_tag = self.config['target_tag']
                             if f'#{target_tag}' in content:
                                 # タグを含むすべての行を取得（箇条書きのみ）
@@ -412,9 +412,7 @@ class ObsidianSummary:
             if not tagged_notes:
                 message = "要約対象のノートが見つかりませんでした。AI要約をスキップします。"
                 self.logger.info(message)
-                # メール送信の実行（無効の場合は内部でスキップ）
-                self.send_email(message)
-                return
+                return  # 要約対象が見つからない場合はここで終了
 
             # skip_summaryオプションの確認
             if self.config['openai'].get('skip_summary', False):
