@@ -180,28 +180,63 @@ class ObsidianSummary:
                             notes.append((filepath, original_content))
                             self.logger.info(f"フロントマターにタグ付きノートを検出: {filepath}")
                         else:
-                            # 本文中のタグ付き箇条書きを抽出
-                            target_tag = self.config['target_tag']
-                            if f'#{target_tag}' in content:
-                                # タグを含むすべての行を取得（箇条書きのみ）
+                            # 本文中のタグ付き箇条書きブロックを抽出
+                            target_tag_str = self.config['target_tag']
+                            # タグが単独の単語として存在するか確認するための正規表現
+                            search_tag_regex = re.compile(rf'#{target_tag_str}(?:$|\s|[^\w#])')
+
+                            # まず、コンテンツ全体にタグが含まれているか大まかに確認
+                            if not search_tag_regex.search(content):
+                                self.logger.info(f"コンテンツにタグ '{target_tag_str}' が見つかりません。スキップ: {filepath}")
+                            else:
                                 lines = content.splitlines()
-                                tagged_lines = []
-                                for line in lines:
-                                    # タグと箇条書きの検出を個別に行い、結果をログ出力
-                                    tag_match = re.search(rf'#{target_tag}(?:$|\s|[^\w#])', line)
-                                    bullet_match = line.strip().startswith('-') or re.match(r'\s*-.*', line)
-                                    
-                                    if tag_match:
-                                        self.logger.info(f"タグを検出: {line}")
-                                    if bullet_match:
-                                        self.logger.info(f"箇条書きを検出: {line}")
-                                    
-                                    if tag_match and bullet_match:
-                                        tagged_lines.append(line)
-                                        self.logger.info(f"タグ付き箇条書き行を検出: {line}")
-                                if tagged_lines:
-                                    notes.append((filepath, '\n'.join(tagged_lines)))
-                                    self.logger.info(f"コンテンツ内のタグ付き行を検出: {filepath}")
+                                extracted_tagged_blocks = []
+                                
+                                i = 0
+                                while i < len(lines):
+                                    line = lines[i]
+                                    match_list_item_start = re.match(r'^(\s*)-\s+', line) # リストアイテムの開始を検出
+
+                                    if match_list_item_start:
+                                        current_block_lines = [line]
+                                        base_indent_len = len(match_list_item_start.group(1)) # リストアイテム開始時のインデント
+                                        
+                                        # 同じリストアイテムに属する後続の行を収集
+                                        j = i + 1
+                                        while j < len(lines):
+                                            next_line = lines[j]
+                                            next_line_leading_space_len = len(re.match(r'^(\s*)', next_line).group(1))
+                                            is_next_line_new_list_item = bool(re.match(r'^\s*-\s+', next_line))
+
+                                            # 現在のブロックを継続する条件:
+                                            # 1. 次の行が空行である。
+                                            # 2. 次の行が現在のリストアイテムよりも深くインデントされている。
+                                            # 3. 次の行が新しいリストアイテムではなく、かつ現在のリストアイテム以上のインデントを持つ (アイテム内の複数行テキストに対応)。
+                                            if not next_line.strip(): # 条件1: 空行
+                                                current_block_lines.append(next_line)
+                                            elif next_line_leading_space_len > base_indent_len: # 条件2: より深くインデント
+                                                current_block_lines.append(next_line)
+                                            elif not is_next_line_new_list_item and next_line_leading_space_len >= base_indent_len: # 条件3
+                                                current_block_lines.append(next_line)
+                                            else:
+                                                # 上記条件に合致しない場合、現在のブロックは終了
+                                                break 
+                                            j += 1
+                                        
+                                        # 現在のブロック (lines[i...j-1]) が完成
+                                        block_content = "\n".join(current_block_lines)
+                                        if search_tag_regex.search(block_content):
+                                            extracted_tagged_blocks.append(block_content)
+                                            self.logger.info(f"タグ付き箇条書きブロックを検出:\n{block_content}")
+                                        
+                                        i = j # メインイテレータを次のブロックの開始位置へ移動
+                                    else:
+                                        # 行がリストアイテムを開始しない場合は、単に進む
+                                        i += 1
+                                
+                                if extracted_tagged_blocks:
+                                    notes.append((filepath, "\n\n".join(extracted_tagged_blocks))) # 同じファイル内の複数ブロックは改行2つで結合
+                                    self.logger.info(f"コンテンツ内のタグ付きブロックを検出: {filepath}")
             return notes
         except Exception as e:
             self.logger.error(f"ノート検索中にエラー: {e}")
